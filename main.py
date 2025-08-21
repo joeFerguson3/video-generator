@@ -102,9 +102,15 @@ def voiceover():
     print("Audio saved as voiceover.mp3")
 
 def videos():
+    messages = [{"role": "system", "content": "You  are needed to search for stock videos relevant to the text. Give up to five words to search for a stock videos. only state these five words, nothing else"}]
+    messages.append({"role": "user", "content": "The text to generate the five words for is: " + article})
+    response = ollama.chat(model='gemma3', messages=messages)
+    response = response["message"]["content"]
+    print(response)
+
     url = "https://api.pexels.com/videos/search"
     headers = {"Authorization": PEXELS_API_KEY}
-    params = {"query": "technology", "per_page": 2, "page": 1}
+    params = {"query": response, "per_page": 2, "page": 1}
 
     response = requests.get(url, headers=headers, params=params)
     data = response.json()
