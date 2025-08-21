@@ -1,0 +1,5 @@
+# Contains pexels api key
+.env
+
+#Generated voice over
+voiceover.mp3

@@ -3,6 +3,13 @@ import requests
 from bs4 import BeautifulSoup
 import ollama
 from gtts import gTTS
+from dotenv import load_dotenv
+import os
+from pexels_api import API
+
+load_dotenv()
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
+api = API(PEXELS_API_KEY)
 
 # Gets latest news headlines
 def get_headlines():
@@ -94,4 +101,23 @@ def voiceover():
 
     print("Audio saved as voiceover.mp3")
 
-voiceover()
+def videos():
+    url = "https://api.pexels.com/videos/search"
+    headers = {"Authorization": PEXELS_API_KEY}
+    params = {"query": "technology", "per_page": 2, "page": 1}
+
+    response = requests.get(url, headers=headers, params=params)
+    data = response.json()
+
+    for video in data["videos"]:
+        # Get the highest quality video file
+        video_file = video["video_files"][-1]
+        video_url = video_file["link"]
+        filename = f"{video['id']}.mp4"
+
+        r = requests.get(video_url)
+        with open(filename, "wb") as f:
+            f.write(r.content)
+        print(f"Downloaded {filename}")
+
+videos()
