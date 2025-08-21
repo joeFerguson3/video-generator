@@ -2,6 +2,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 import ollama
+from gtts import gTTS
 
 # Gets latest news headlines
 def get_headlines():
@@ -80,4 +81,17 @@ Keep sentences short, punchy, and natural for spoken language.
     response = ollama.chat(model='gemma3', messages=messages)
     print(response)
 
-generate_script(article)
+# generate_script(article)
+
+
+def voiceover():
+    script = "hello this is a quick test of how well this works. i hope it works well."
+    # Convert to speech
+    tts = gTTS(text=script, lang='en')
+
+    # Save as mp3
+    tts.save("voiceover.mp3")
+
+    print("Audio saved as voiceover.mp3")
+
+voiceover()
