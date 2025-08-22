@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import os
 from pexels_api import API
 from moviepy.editor import VideoFileClip, concatenate_videoclips, TextClip, CompositeVideoClip, AudioFileClip
+from mutagen.mp3 import MP3
 
 load_dotenv()
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
@@ -63,16 +64,23 @@ Keep sentences short, punchy, and natural for spoken language.
 
 
 def voiceover(script):
-    print("Creating voiceover \n")
-    # Convert to speech
-    tts = gTTS(text=script, lang='en')
+    print("Creating voiceover... \n")
+    parts = script.split("**")
+    print(parts)
+    for i in range(2, len(parts), 2):
+        # Convert to speech
+        tts = gTTS(text=parts[i], lang='en')
+        # Save as mp3
+        tts.save(str(int((i / 2) - 1)) + ".mp3")
+ 
+        find_video(parts[i], int((i / 2) - 1))
+    
+    edit_video(int((len(parts) - 1) / 2))
 
-    # Save as mp3
-    tts.save("voiceover.mp3")
-    videos(script)
+    
 
 clips = []
-def videos(script):
+def find_video(script, number):
     print("Finding relevant video clips...\n")
     messages = [{"role": "system", "content": "You  are needed to search for stock videos relevant to the text. Give 3 video searches to make, seperate each search with with a comma only. Include no other text in your response"}]
     messages.append({"role": "user", "content": "The text to generate the search for videos for is: " + script})
@@ -82,7 +90,7 @@ def videos(script):
 
     url = "https://api.pexels.com/videos/search"
     headers = {"Authorization": PEXELS_API_KEY}
-    params = {"query": response, "per_page": 3, "page": 1}
+    params = {"query": response, "per_page": 1, "page": 1}
 
     response = requests.get(url, headers=headers, params=params)
     data = response.json()
@@ -91,7 +99,7 @@ def videos(script):
         # Get the highest quality video file
         video_file = video["video_files"][-1]
         video_url = video_file["link"]
-        filename = f"{i}.mp4"
+        filename = f"{number}.mp4"
         clips.append(filename)
 
         r = requests.get(video_url)
@@ -99,11 +107,8 @@ def videos(script):
             f.write(r.content)
         print(f"Downloaded {filename}")
 
-    edit_video()
-
-def edit_video():
+def edit_video(clip_num):
     print("Editing video... \n")
-    clips = ["0.mp4", "1.mp4", "2.mp4"]
 
     subtitles = [
         (0, 5, "Welcome to the video!"),
@@ -112,10 +117,13 @@ def edit_video():
     ]
 
     processed_clips = []
-    for i, c in enumerate(clips):
-        video = VideoFileClip(c)
-        video = video.subclip(0, 10)
-    
+    for i in range(0, clip_num - 1):
+        video = VideoFileClip(str(i) + ".mp4")
+        duration = MP3(str(i) + ".mp3").info.length
+        video = video.subclip(0, duration)
+       
+        audio = AudioFileClip(str(i) + ".mp3")
+        video = video.set_audio(audio)
         # Resize to height 1920 while keeping aspect ratio
         video = video.resize(height=1920)
 
@@ -126,8 +134,6 @@ def edit_video():
         processed_clips.append(video)
 
     final = concatenate_videoclips(processed_clips, method="compose")
-    audio = AudioFileClip("voiceover.mp3")
-    final = final.set_audio(audio)
     final.write_videofile("final.mp4")
 
-get_headlines()
+edit_video(7)
