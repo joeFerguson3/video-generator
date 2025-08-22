@@ -6,6 +6,7 @@ from gtts import gTTS
 from dotenv import load_dotenv
 import os
 from pexels_api import API
+from moviepy.editor import VideoFileClip, concatenate_videoclips, TextClip, CompositeVideoClip
 
 load_dotenv()
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
@@ -25,37 +26,7 @@ def get_headlines():
 
 url = 'https://www.bbc.co.uk/news/articles/c24zdel5j18o?at_medium=RSS&at_campaign=rss'
 
-article = """An investigation has been launched into the death of a French streamer known for extreme challenges.
-
-Raphaël Graven, also known as Jean Pormanove, was found dead at a residence in Contes, a village north of Nice, prosecutors said.
-
-The 46-year-old had been subject to bouts of violence and sleep deprivation during streams, and died in his sleep during a live broadcast, local media reported.
-
-Confirming a judicial investigation was under way, French government minister Clara Chappaz described Mr Graven's death and violence he endured as an "absolute horror", adding he had been "humiliated" for months.
-
-Top tips to help people game online safely
-
-What is the streaming platform Kick?
-
-Meta investigated over AI having 'sensual' chats with children
-
-A spokesperson for Kick - a live-streaming platform similar to Twitch, on which users can broadcast content and interact with other users in real-time - told the BBC the company was "urgently reviewing" circumstances around the streamer's death.
-
-"We are deeply saddened by the loss of Jean Pormanove and extend our condolences to his family, friends and community," they said.
-
-The platform's community guidelines were "designed to protect creators" and Kick was "committed to upholding these standards across our platform", the spokesperson added.
-
-Chappaz, the minister delegate for artificial intelligence and digital technologies, said she had referred the issue to Arcom, the French media regulator, and Pharos, a French system used to report online content.
-
-Sarah El Haïry, France's High Commissioner for Children, described the death as "horrifying".
-
-"Platforms have an immense responsibility in regulating online content so that our children are not exposed to violent content. I call on parents to be extremely vigilant", she wrote on X, external.
-
-The prosecutor's office confirmed it had opened an investigation into the cause of death and ordered an autopsy, the AFP news agency reports.
-
-Jean Pormanove had more than one million followers across his various social media platforms and had built a strong community on Kick.
-
-One of his co-creators Owen Cenazandotti, known as Naruto, announced Jean Pormanove's death on Instagram, external and paid tribute to his "brother, sidekick, partner," and asked people to "respect" his memory and not to share videos of his "last breath" online."""
+article = """I love tv shoes especially like spongebob because it is hilarious"""
 
 # Gets article content from URL
 def get_article():
@@ -101,6 +72,7 @@ def voiceover():
 
     print("Audio saved as voiceover.mp3")
 
+clips = []
 def videos():
     messages = [{"role": "system", "content": "You  are needed to search for stock videos relevant to the text. Give up to five words to search for a stock videos. only state these five words, nothing else"}]
     messages.append({"role": "user", "content": "The text to generate the five words for is: " + article})
@@ -110,20 +82,61 @@ def videos():
 
     url = "https://api.pexels.com/videos/search"
     headers = {"Authorization": PEXELS_API_KEY}
-    params = {"query": response, "per_page": 2, "page": 1}
+    params = {"query": response, "per_page": 3, "page": 1}
 
     response = requests.get(url, headers=headers, params=params)
     data = response.json()
 
-    for video in data["videos"]:
+    for i, video in enumerate(data["videos"]):
         # Get the highest quality video file
         video_file = video["video_files"][-1]
         video_url = video_file["link"]
-        filename = f"{video['id']}.mp4"
+        filename = f"{i}.mp4"
+        clips.append(filename)
 
         r = requests.get(video_url)
         with open(filename, "wb") as f:
             f.write(r.content)
         print(f"Downloaded {filename}")
 
-videos()
+def edit_video():
+    clips = ["0.mp4", "1.mp4", "2.mp4"]
+
+    subtitles = [
+        (0, 5, "Welcome to the video!"),
+        (5, 10, "Here we talk about technology."),
+        (10, 15, "Thanks for watching!")
+    ]
+
+    processed_clips = []
+    # for clip in clips:
+    #     video = VideoFileClip(clip)
+    #     video = video.subclip(0, 4)
+    #     video = video.resize(height=1920).crop(width=1080, height=1920,  x_center=video.w/2, y_center=video.h/2)
+
+    #     print(os.getcwd())
+    #     video.write_videofile("b" + clip)
+    #     processed_clips.append(video)
+
+    subtitles = [
+        (0, 5, "Welcome to the video!"),
+        (5, 10, "Here we talk about technology."),
+        (10, 15, "Thanks for watching!")
+    ]
+    processed_clips = []
+    for i, c in enumerate(clips):
+        video = VideoFileClip(c)
+        video = video.subclip(0, 5)
+    
+        # Resize to height 1920 while keeping aspect ratio
+        video = video.resize(height=1920)
+
+        # Crop width to 1080 (centered)
+        if video.w > 1080:
+            video = video.crop(width=1080, height=1920, x_center=video.w / 2, y_center=video.h / 2)
+    
+        processed_clips.append(video)
+
+    final = concatenate_videoclips(processed_clips, method="compose")
+    final.write_videofile("final.mp4")
+edit_video()
