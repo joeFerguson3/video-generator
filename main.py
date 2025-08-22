@@ -6,7 +6,7 @@ from gtts import gTTS
 from dotenv import load_dotenv
 import os
 from pexels_api import API
-from moviepy.editor import VideoFileClip, concatenate_videoclips, TextClip, CompositeVideoClip
+from moviepy.editor import VideoFileClip, concatenate_videoclips, TextClip, CompositeVideoClip, AudioFileClip
 
 load_dotenv()
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
@@ -14,38 +14,37 @@ api = API(PEXELS_API_KEY)
 
 # Gets latest news headlines
 def get_headlines():
+    print("Finding headlines.. \n")
     url = "http://feeds.bbci.co.uk/news/technology/rss.xml"
     feed = feedparser.parse(url)
 
     # Gets latest headlines
-    for entry in feed.entries[:5]:
+    for entry in feed.entries[:1]:
         print("Title:", entry.title)
         print("Link:", entry.link)
         print("Published:", entry.published)
-        print()
-
-url = 'https://www.bbc.co.uk/news/articles/c24zdel5j18o?at_medium=RSS&at_campaign=rss'
-
-article = """I love tv shoes especially like spongebob because it is hilarious"""
+        get_article(entry.link)
 
 # Gets article content from URL
-def get_article():
+def get_article(url):
+    print("Getting article... \n")
+    text = ""
     headers = {
         'User-Agent': 'Mozilla/5.0'
     }
 
     response = requests.get(url, headers=headers)
     html = response.text
-
     soup = BeautifulSoup(html, 'html.parser')
-    title = soup.find(id="main-heading").find("span")
-    print(title)
+ 
     article = soup.find_all("article")
     for a in article:
-        print(a.text)
+        text += a.text
+    generate_script(text)
 
 # Generates a script using given article
 def generate_script(article):
+    print("Generating script \n")
     messages = [{"role": "system", "content": """ You are a short-form video scriptwriter. 
 Generate an engaging narration for a ~30-second video about the topic provided. 
 Output ONLY the text to be spoken as a voiceover, no music, images etc. 
@@ -57,28 +56,29 @@ Keep sentences short, punchy, and natural for spoken language.
 
     # Generates ai response
     response = ollama.chat(model='gemma3', messages=messages)
-    print(response)
+    print(response['message']['content'])
+    voiceover(response['message']['content'])
 
 # generate_script(article)
 
 
-def voiceover():
-    script = "hello this is a quick test of how well this works. i hope it works well."
+def voiceover(script):
+    print("Creating voiceover \n")
     # Convert to speech
     tts = gTTS(text=script, lang='en')
 
     # Save as mp3
     tts.save("voiceover.mp3")
-
-    print("Audio saved as voiceover.mp3")
+    videos(script)
 
 clips = []
-def videos():
-    messages = [{"role": "system", "content": "You  are needed to search for stock videos relevant to the text. Give up to five words to search for a stock videos. only state these five words, nothing else"}]
-    messages.append({"role": "user", "content": "The text to generate the five words for is: " + article})
+def videos(script):
+    print("Finding relevant video clips...\n")
+    messages = [{"role": "system", "content": "You  are needed to search for stock videos relevant to the text. Give 3 video searches to make, seperate each search with with a comma only. Include no other text in your response"}]
+    messages.append({"role": "user", "content": "The text to generate the search for videos for is: " + script})
     response = ollama.chat(model='gemma3', messages=messages)
     response = response["message"]["content"]
-    print(response)
+    print("searching for " + response)
 
     url = "https://api.pexels.com/videos/search"
     headers = {"Authorization": PEXELS_API_KEY}
@@ -99,7 +99,10 @@ def videos():
             f.write(r.content)
         print(f"Downloaded {filename}")
 
+    edit_video()
+
 def edit_video():
+    print("Editing video... \n")
     clips = ["0.mp4", "1.mp4", "2.mp4"]
 
     subtitles = [
@@ -109,24 +112,9 @@ def edit_video():
     ]
 
     processed_clips = []
-    # for clip in clips:
-    #     video = VideoFileClip(clip)
-    #     video = video.subclip(0, 4)
-    #     video = video.resize(height=1920).crop(width=1080, height=1920,  x_center=video.w/2, y_center=video.h/2)
-
-    #     print(os.getcwd())
-    #     video.write_videofile("b" + clip)
-    #     processed_clips.append(video)
-
-    subtitles = [
-        (0, 5, "Welcome to the video!"),
-        (5, 10, "Here we talk about technology."),
-        (10, 15, "Thanks for watching!")
-    ]
-    processed_clips = []
     for i, c in enumerate(clips):
         video = VideoFileClip(c)
-        video = video.subclip(0, 5)
+        video = video.subclip(0, 10)
     
         # Resize to height 1920 while keeping aspect ratio
         video = video.resize(height=1920)
@@ -138,5 +126,8 @@ def edit_video():
         processed_clips.append(video)
 
     final = concatenate_videoclips(processed_clips, method="compose")
+    audio = AudioFileClip("voiceover.mp3")
+    final = final.set_audio(audio)
     final.write_videofile("final.mp4")
-edit_video()
+
+get_headlines()
