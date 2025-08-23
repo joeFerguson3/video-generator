@@ -8,6 +8,9 @@ import os
 from pexels_api import API
 from moviepy.editor import VideoFileClip, concatenate_videoclips, TextClip, CompositeVideoClip, AudioFileClip
 from mutagen.mp3 import MP3
+from PIL import Image, ImageDraw, ImageFont
+import numpy as np
+import textwrap
 
 load_dotenv()
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
@@ -45,7 +48,7 @@ def get_article(url):
 
 # Generates a script using given article
 def generate_script(article):
-    print("Generating script \n")
+    print("Generating script... \n")
     messages = [{"role": "system", "content": """ You are a short-form video scriptwriter. 
 Generate an engaging narration for a ~30-second video about the topic provided. 
 Output ONLY the text to be spoken as a voiceover, no music, images etc. 
@@ -73,11 +76,35 @@ def voiceover(script):
         # Save as mp3
         tts.save(str(int((i / 2) - 1)) + ".mp3")
  
-        find_video(parts[i], int((i / 2) - 1))
-    
-    edit_video(int((len(parts) - 1) / 2))
+        find_video(parts[i], int((i / 2) - 1))   
+    edit_video(int((len(parts) - 1) / 2), parts)
 
-    
+from moviepy.editor import CompositeVideoClip, TextClip
+from moviepy.video.tools.subtitles import SubtitlesClip
+
+# Adds subtitles to video
+def add_subtitles(video, text, duration):
+    font = ImageFont.truetype(r"c:\WINDOWS\Fonts\ARIALBD.TTF", 70)
+
+    def draw_subtitle(frame):
+        img = Image.fromarray(frame)
+        draw = ImageDraw.Draw(img)
+        w, h = img.size
+
+        max_chars = w // (font.size // 2)
+        wrapped = textwrap.fill(text, width=max_chars)
+
+        # Get text size using textbbox
+        bbox = draw.multiline_textbbox((0, 0), wrapped, font=font, spacing=10)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+        position = ((w - text_w)//2, h - text_h - 300)
+        draw.multiline_text(position, wrapped, font=font, fill="white", stroke_width=5, stroke_fill="black", spacing=10)
+        return np.array(img)
+
+    # Apply the subtitle to all frames for the given duration
+    return video.subclip(0, duration).fl_image(draw_subtitle)
+
 
 clips = []
 def find_video(script, number):
@@ -107,14 +134,8 @@ def find_video(script, number):
             f.write(r.content)
         print(f"Downloaded {filename}")
 
-def edit_video(clip_num):
+def edit_video(clip_num, subtitles):
     print("Editing video... \n")
-
-    subtitles = [
-        (0, 5, "Welcome to the video!"),
-        (5, 10, "Here we talk about technology."),
-        (10, 15, "Thanks for watching!")
-    ]
 
     processed_clips = []
     for i in range(0, clip_num - 1):
@@ -130,10 +151,11 @@ def edit_video(clip_num):
         # Crop width to 1080 (centered)
         if video.w > 1080:
             video = video.crop(width=1080, height=1920, x_center=video.w / 2, y_center=video.h / 2)
-    
+
+        video = add_subtitles(video, subtitles[i], duration) #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FIX
         processed_clips.append(video)
 
     final = concatenate_videoclips(processed_clips, method="compose")
     final.write_videofile("final.mp4")
 
-edit_video(7)
+edit_video(5, ["thisis sub", "asadfj as flkjfd asf safjlsfj asfk asfjasdf as;fjdaljf aslfjafj asdfljasl;fkja sdflkajsdf;l asjdf;asjkdf  aksjdf;lasjf", "asdf", "asdf", "asdf"])
